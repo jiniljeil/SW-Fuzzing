@@ -1,0 +1,572 @@
+        -:    0:Source:../src/replace.c
+        -:    0:Graph:replace.gcno
+        -:    0:Data:replace.gcda
+        -:    0:Runs:10
+        -:    0:Programs:1
+        -:    1:/*  -*- Last-Edit:  Mon Dec  7 10:31:51 1992 by Tarak S. Goradia; -*- */
+        -:    2:
+        -:    3:#include <ctype.h>
+        -:    4:#include <stdio.h>
+        -:    5:#include <stdlib.h>
+        -:    6:
+        -:    7:void	Caseerror();
+        -:    8:
+        -:    9:typedef char	bool;
+        -:   10:# define false 0
+        -:   11:# define true  1
+        -:   12:
+        -:   13:# define MYMAX 10
+        -:   14:# define MYLINEMAX 20
+        -:   15:
+        -:   16:# define MAXSTR 100
+        -:   17:# define MAXPAT MAXSTR
+        -:   18:
+        -:   19:# define ENDSTR  '\0'
+        -:   20:# define ESCAPE  '@'
+        -:   21:# define CLOSURE '*'
+        -:   22:# define BOL     '%'
+        -:   23:# define EOL     '$'
+        -:   24:# define ANY     '?'
+        -:   25:# define CCL     '['
+        -:   26:# define CCLEND  ']'
+        -:   27:# define NEGATE  '^'
+        -:   28:# define NCCL    '!'
+        -:   29:# define LITCHAR 'c'
+        -:   30:# define DITTO   -1
+        -:   31:# define DASH    '-'
+        -:   32:
+        -:   33:# define TAB     9
+        -:   34:# define NEWLINE 10
+        -:   35:
+        -:   36:# define CLOSIZE 1
+        -:   37:
+        -:   38:typedef char	character;
+        -:   39:typedef char string[MAXSTR];
+        -:   40:
+        -:   41:bool
+       10:   42:getline2(s, maxsize)
+        -:   43:char	*s;
+        -:   44:int	maxsize;
+        -:   45:{
+        -:   46:    char *result;
+       10:   47:    result = fgets(s, maxsize, stdin);
+       10:   48:    return (result != NULL);
+        -:   49:}
+        -:   50:
+        -:   51:int
+      421:   52:addstr(c, outset, j, maxset)
+        -:   53:char	c;
+        -:   54:char	*outset;
+        -:   55:int	*j;
+        -:   56:int	maxset;
+        -:   57:{
+        -:   58:    bool	result;
+      421:   59:    if (*j >= maxset)
+    #####:   60:	result = false;
+        -:   61:    else {
+      421:   62:	outset[*j] = c;
+      421:   63:	*j = *j + 1;
+      421:   64:	result = true;
+        -:   65:    }
+      421:   66:    return result;
+        -:   67:}
+        -:   68:
+        -:   69:char
+       72:   70:esc(s, i)
+        -:   71:char 	*s;
+        -:   72:int	*i;
+        -:   73:{
+        -:   74:    char	result;
+       72:   75:    if (s[*i] != ESCAPE)
+       57:   76:	result = s[*i];
+        -:   77:    else
+       15:   78:	if (s[*i + 1] == ENDSTR)
+    #####:   79:	    result = ESCAPE;
+        -:   80:	else
+        -:   81:	{
+       15:   82:	    *i = *i + 1;
+       15:   83:	    if (s[*i] == 'n')
+        3:   84:		result = NEWLINE;
+        -:   85:	    else
+       12:   86:		if (s[*i] == 't')
+        2:   87:		    result = TAB;
+        -:   88:		else
+       10:   89:		    result = s[*i];
+        -:   90:	}
+       72:   91:    return result;
+        -:   92:}
+        -:   93:
+        -:   94:void change();
+        -:   95:
+        -:   96:void
+       25:   97:dodash(delim, src, i, dest, j, maxset)
+        -:   98:char	delim;
+        -:   99:char	*src;
+        -:  100:int	*i;
+        -:  101:char	*dest;
+        -:  102:int	*j;
+        -:  103:int	maxset;
+        -:  104:{
+        -:  105:    int	k;
+        -:  106:    bool	junk;
+        -:  107:    char	escjunk;
+        -:  108:
+      110:  109:    while ((src[*i] != delim) && (src[*i] != ENDSTR))
+        -:  110:    {
+       60:  111:	if (src[*i - 1] == ESCAPE) {
+        1:  112:	    escjunk = esc(src, i);
+        1:  113:	    junk = addstr(escjunk, dest, j, maxset);
+        -:  114:	} else
+       59:  115:	    if (src[*i] != DASH)
+       31:  116:		junk = addstr(src[*i], dest, j, maxset);
+       28:  117:	    else if (*j <= 1 || src[*i + 1] == ENDSTR)
+    #####:  118:		junk = addstr(DASH, dest, j, maxset);
+       28:  119:	    else if ((isalnum(src[*i - 1])) && (isalnum(src[*i + 1]))
+       22:  120:		&& (src[*i - 1] <= src[*i + 1]))
+        -:  121:		{
+      192:  122:		    for (k = src[*i-1]+1; k<=src[*i+1]; k++)
+        -:  123:		    {
+      170:  124:			junk = addstr(k, dest, j, maxset);
+        -:  125:		    }
+       22:  126:		    *i = *i + 1;
+        -:  127:		}
+        -:  128:	    else
+        6:  129:		junk = addstr(DASH, dest, j, maxset);
+       60:  130:	(*i) = (*i) + 1;
+        -:  131:    }
+       25:  132:}
+        -:  133:
+        -:  134:bool
+       25:  135:getccl(arg, i, pat, j)
+        -:  136:char	*arg;
+        -:  137:int	*i;
+        -:  138:char	*pat;
+        -:  139:int	*j;
+        -:  140:{
+        -:  141:    int	jstart;
+        -:  142:    bool	junk;
+        -:  143:
+       25:  144:    *i = *i + 1;
+       25:  145:    if (arg[*i] == NEGATE) {
+       14:  146:	junk = addstr(NCCL, pat, j, MAXPAT);
+       14:  147:	*i = *i + 1;
+        -:  148:    } else
+       11:  149:	junk = addstr(CCL, pat, j, MAXPAT);
+       25:  150:    jstart = *j;
+       25:  151:    junk = addstr(0, pat, j, MAXPAT);
+       25:  152:    dodash(CCLEND, arg, i, pat, j, MAXPAT);
+       25:  153:    pat[jstart] = *j - jstart - 1;
+       25:  154:    return (arg[*i] == CCLEND);
+        -:  155:}
+        -:  156:
+        -:  157:void
+       10:  158:stclose(pat, j, lastj)
+        -:  159:char	*pat;
+        -:  160:int	*j;
+        -:  161:int	lastj;
+        -:  162:{
+        -:  163:    int	jt;
+        -:  164:    int	jp;
+        -:  165:    bool	junk;
+        -:  166:
+        -:  167:
+       30:  168:    for (jp = *j - 1; jp >= lastj ; jp--)
+        -:  169:    {
+       20:  170:	jt = jp + CLOSIZE;
+       20:  171:	junk = addstr(pat[jp], pat, &jt, MAXPAT);
+        -:  172:    }
+       10:  173:    *j = *j + CLOSIZE;
+       10:  174:    pat[lastj] = CLOSURE;
+       10:  175:}
+        -:  176:
+       10:  177:bool in_set_2(c)
+        -:  178:char c;
+        -:  179:{
+       10:  180:  return (c == BOL || c == EOL || c == CLOSURE);
+        -:  181:}
+        -:  182:
+      283:  183:bool in_pat_set(c)
+        -:  184:char c;
+        -:  185:{
+      200:  186:  return (   c == LITCHAR || c == BOL  || c == EOL || c == ANY
+      378:  187:          || c == CCL     || c == NCCL || c == CLOSURE);
+        -:  188:}
+        -:  189:
+        -:  190:int
+       10:  191:makepat(arg, start, delim, pat)
+        -:  192:char	*arg;
+        -:  193:int	start;
+        -:  194:char	delim;
+        -:  195:char	*pat;
+        -:  196:{
+        -:  197:    int	result;
+        -:  198:    int	i, j, lastj, lj;
+        -:  199:    bool	done, junk;
+        -:  200:    bool	getres;
+        -:  201:    char	escjunk;
+        -:  202:
+       10:  203:    j = 0;
+       10:  204:    i = start;
+       10:  205:    lastj = 0;
+       10:  206:    done = false;
+      101:  207:    while ((!done) && (arg[i] != delim) && (arg[i] != ENDSTR)) {
+       81:  208:	lj = j;
+       81:  209:	if ((arg[i] == ANY))
+       12:  210:	    junk = addstr(ANY, pat, &j, MAXPAT);
+       69:  211:	else if ((arg[i] == BOL) && (i == start))
+        7:  212:	    junk = addstr(BOL, pat, &j, MAXPAT);
+       62:  213:	else if ((arg[i] == EOL) && (arg[i+1] == delim))
+        5:  214:	    junk = addstr(EOL, pat, &j, MAXPAT);
+       57:  215:	else if ((arg[i] == CCL))
+        -:  216:	{
+       25:  217:	    getres = getccl(arg, &i, pat, &j);
+       25:  218:	    done = (bool)(getres == false);
+        -:  219:	}
+       32:  220:	else if ((arg[i] == CLOSURE) && (i > start))
+        -:  221:	{
+       10:  222:	    lj = lastj;
+       20:  223:	    if (in_set_2(pat[lj]))
+    #####:  224:		done = true;
+        -:  225:	    else
+       10:  226:		stclose(pat, &j, lastj);
+        -:  227:	}
+        -:  228:	else
+        -:  229:	{
+       22:  230:	    junk = addstr(LITCHAR, pat, &j, MAXPAT);
+       22:  231:	    escjunk = esc(arg, &i);
+       22:  232:	    junk = addstr(escjunk, pat, &j, MAXPAT);
+        -:  233:	}
+       81:  234:	lastj = lj;
+       81:  235:	if ((!done))
+       81:  236:	    i = i + 1;
+        -:  237:    }
+       10:  238:    junk = addstr(ENDSTR, pat, &j, MAXPAT);
+       10:  239:    if ((done) || (arg[i] != delim))
+    #####:  240:	result = 0;
+        -:  241:    else
+       10:  242:	if ((!junk))
+    #####:  243:	    result = 0;
+        -:  244:	else
+       10:  245:	    result = i;
+       10:  246:    return result;
+        -:  247:}
+        -:  248:
+        -:  249:int
+       10:  250:getpat(arg, pat)
+        -:  251:char*	arg;
+        -:  252:char*	pat;
+        -:  253:{
+        -:  254:    int	makeres;
+        -:  255:
+       10:  256:    makeres = makepat(arg, 0, ENDSTR, pat);
+       10:  257:    return (makeres > 0);
+        -:  258:}
+        -:  259:
+        -:  260:int
+       10:  261:makesub(arg, from, delim, sub)
+        -:  262:	char*	arg;
+        -:  263:	int	from;
+        -:  264:	character	delim;
+        -:  265:	char*	sub;
+        -:  266:{
+        -:  267:    int  result;
+        -:  268:    int	i, j;
+        -:  269:    bool	junk;
+        -:  270:    character	escjunk;
+        -:  271:
+       10:  272:    j = 0;
+       10:  273:    i = from;
+       75:  274:    while ((arg[i] != delim) && (arg[i] != ENDSTR)) {
+       55:  275:	if ((arg[i] == (unsigned)('&')))
+        6:  276:	    junk = addstr(DITTO, sub, &j, MAXPAT);
+        -:  277:	else {
+       49:  278:	    escjunk = esc(arg, &i);
+       49:  279:	    junk = addstr(escjunk, sub, &j, MAXPAT);
+        -:  280:	}
+       55:  281:	i = i + 1;
+        -:  282:    }
+       10:  283:    if (arg[i] != delim)
+    #####:  284:	result = 0;
+        -:  285:    else {
+       10:  286:	junk = addstr(ENDSTR, &(*sub), &j, MAXPAT);
+       10:  287:	if ((!junk))
+    #####:  288:	    result = 0;
+        -:  289:	else
+       10:  290:	    result = i;
+        -:  291:    }
+       10:  292:    return result;
+        -:  293:}
+        -:  294:
+        -:  295:bool
+       10:  296:getsub(arg, sub)
+        -:  297:	char*	arg;
+        -:  298:	char*	sub;
+        -:  299:{
+        -:  300:    int	makeres;
+        -:  301:
+       10:  302:    makeres = makesub(arg, 0, ENDSTR, sub);
+       10:  303:    return (makeres > 0);
+        -:  304:}
+        -:  305:
+        -:  306:void subline();
+        -:  307:
+        -:  308:bool
+       52:  309:locate(c, pat, offset)
+        -:  310:	character	c;
+        -:  311:	char *	pat;
+        -:  312:	int	offset;
+        -:  313:{
+        -:  314:    int	i;
+        -:  315:    bool flag;
+        -:  316:
+       52:  317:    flag = false;
+       52:  318:    i = offset + pat[offset];
+      567:  319:    while ((i > offset))
+        -:  320:    {
+      463:  321:	if (c == pat[i]) {
+       20:  322:	    flag = true;
+       20:  323:	    i = offset;
+        -:  324:	} else
+      443:  325:	    i = i - 1;
+        -:  326:    }
+       52:  327:    return flag;
+        -:  328:}
+        -:  329:
+        -:  330:bool
+      182:  331:omatch(lin, i, pat, j)
+        -:  332:	char*	lin;
+        -:  333:	int	*i;
+        -:  334:	char*	pat;
+        -:  335:	int	j;
+        -:  336:{
+        -:  337:    char	advance;
+        -:  338:    bool result;
+        -:  339:
+      182:  340:    advance = -1;
+      182:  341:    if ((lin[*i] == ENDSTR))
+        1:  342:	result = false;
+        -:  343:    else
+        -:  344:    {
+      181:  345:	if (!in_pat_set(pat[j]))
+        -:  346:	{
+    #####:  347:	    (void)fprintf(stdout, "in omatch: can't happen\n");
+    #####:  348:	    abort();
+        -:  349:	} else
+        -:  350:	{
+      181:  351:	     switch (pat[j])
+        -:  352:	     {
+       59:  353:	     case LITCHAR:
+       59:  354:		 if (lin[*i] == pat[j + 1])
+       37:  355:		     advance = 1;
+       59:  356:		 break ;
+       39:  357:	     case BOL:
+       39:  358:		 if (*i == 0)
+        7:  359:		     advance = 0;
+       39:  360:		 break ;
+       26:  361:	     case ANY:
+       26:  362:		 if (lin[*i] != NEWLINE)
+       23:  363:		     advance = 1;
+       26:  364:		 break ;
+        5:  365:	     case EOL:
+        5:  366:		 if (lin[*i] == NEWLINE)
+        5:  367:		     advance = 0;
+        5:  368:		 break ;
+       39:  369:	     case CCL:
+       39:  370:		 if (locate(lin[*i], pat, j + 1))
+       20:  371:		     advance = 1;
+       39:  372:		 break ;
+       13:  373:	     case NCCL:
+       13:  374:		 if ((lin[*i] != NEWLINE) && (!locate(lin[*i], pat, j+1)))
+       13:  375:		     advance = 1;
+       13:  376:		 break ;
+    #####:  377:	     default:
+    #####:  378:		 Caseerror(pat[j]);
+        -:  379:	     };
+        -:  380:	 }
+        -:  381:    }
+      182:  382:    if ((advance >= 0))
+        -:  383:    {
+      105:  384:	*i = *i + advance;
+      105:  385:	result = true;
+        -:  386:    } else
+       77:  387:	result = false;
+      182:  388:    return result;
+        -:  389:}
+        -:  390:
+        -:  391:int
+      102:  392:patsize(pat, n)
+        -:  393:	char*	pat;
+        -:  394:	int	n;
+        -:  395:{
+        -:  396:    int size;
+      102:  397:    if (!in_pat_set(pat[n])) {
+    #####:  398:	(void)fprintf(stdout, "in patsize: can't happen\n");
+    #####:  399:	abort();
+        -:  400:    } else
+      102:  401:	switch (pat[n])
+        -:  402:	{
+       24:  403:	case LITCHAR: size = 2; break;
+        -:  404:
+       35:  405:	case BOL:  case EOL:  case ANY:
+       35:  406:	    size = 1;
+       35:  407:	    break;
+       33:  408:	case CCL:  case NCCL:
+       33:  409:	    size = pat[n + 1] + 2;
+       33:  410:	    break ;
+       10:  411:	case CLOSURE:
+       10:  412:	    size = CLOSIZE;
+       10:  413:	    break ;
+    #####:  414:	default:
+    #####:  415:	    Caseerror(pat[n]);
+        -:  416:	}
+      102:  417:    return size;
+        -:  418:}
+        -:  419:
+        -:  420:int
+       92:  421:amatch(lin, offset, pat, j)
+        -:  422:	char*	lin;
+        -:  423:	int	offset;
+        -:  424:	char*	pat;
+        -:  425:	int	j;
+        -:  426:{
+        -:  427:    int	i, k;
+        -:  428:    bool	result, done;
+        -:  429:
+       92:  430:    done = false;
+      340:  431:    while ((!done) && (pat[j] != ENDSTR))
+      156:  432:	if ((pat[j] == CLOSURE)) {
+       10:  433:	    j = j + patsize(pat, j);
+       10:  434:	    i = offset;
+       56:  435:	    while ((!done) && (lin[i] != ENDSTR)) {
+       36:  436:		result = omatch(lin, &i, pat, j);
+       36:  437:		if (!result)
+        9:  438:		    done = true;
+        -:  439:	    }
+       10:  440:	    done = false;
+       34:  441:	    while ((!done) && (i >= offset)) {
+       14:  442:		k = amatch(lin, i, pat, j + patsize(pat, j));
+       14:  443:		if ((k >= 0))
+       10:  444:		    done = true;
+        -:  445:		else
+        4:  446:		    i = i - 1;
+        -:  447:	    }
+       10:  448:	    offset = k;
+       10:  449:	    done = true;
+        -:  450:	} else {
+      146:  451:	    result = omatch(lin, &offset, pat, j);
+      146:  452:	    if ((!result)) {
+       68:  453:		offset = -1;
+       68:  454:		done = true;
+        -:  455:	    } else
+       78:  456:		j = j + patsize(pat, j);
+        -:  457:	}
+       92:  458:     return offset;
+        -:  459:}
+        -:  460:
+        -:  461:void
+       14:  462:putsub(lin, s1, s2, sub)
+        -:  463:  char *	lin;
+        -:  464:  int	s1, s2;
+        -:  465:  char *	sub;
+        -:  466:{
+        -:  467:    int	i;
+        -:  468:    int		j;
+        -:  469:
+       14:  470:    i = 0;
+       92:  471:    while ((sub[i] != ENDSTR)) {
+       64:  472:	if ((sub[i] == DITTO))
+       57:  473:	    for (j = s1; j < s2; j++)
+        -:  474:	    {
+       51:  475:		fputc(lin[j],stdout);
+        -:  476:	    }
+        -:  477:	else
+        -:  478:	{
+       58:  479:	    fputc(sub[i],stdout);
+        -:  480:	}
+       64:  481:	i = i + 1;
+        -:  482:    }
+       14:  483:}
+        -:  484:
+        -:  485:void
+       10:  486:subline(lin, pat, sub)
+        -:  487: char	*lin;
+        -:  488: char   *pat;
+        -:  489: char   *sub;
+        -:  490:{
+        -:  491:	int	i, lastm, m;
+        -:  492:
+       10:  493:	lastm = -1;
+       10:  494:	i = 0;
+       98:  495:	while ((lin[i] != ENDSTR))
+        -:  496:	{
+       78:  497:	    m = amatch(lin, i, pat, 0);
+       78:  498:	    if ((m >= 0) && (lastm != m)) {
+       14:  499:		putsub(lin, i, m, sub);
+       14:  500:		lastm = m;
+        -:  501:	    }
+       78:  502:	    if ((m == -1) || (m == i)) {
+       64:  503:		fputc(lin[i],stdout);
+       64:  504:		i = i + 1;
+        -:  505:	    } else
+       14:  506:		i = m;
+        -:  507:	}
+       10:  508:}
+        -:  509:
+        -:  510:void
+       10:  511:change(pat, sub)
+        -:  512:char *pat, *sub;
+        -:  513:{
+        -:  514:    string  line;
+        -:  515:    bool result;
+        -:  516:
+       10:  517:    result = getline2(line, MAXSTR);
+       10:  518:    if (result) {
+       10:  519:      subline(line, pat, sub);
+        -:  520:    }
+       10:  521:}
+        -:  522:
+        -:  523:int
+       10:  524:main(argc, argv)
+        -:  525:int	argc;
+        -:  526:char	*argv[];
+        -:  527:{
+        -:  528:   string pat, sub;
+        -:  529:   bool result;
+        -:  530:
+       10:  531:   if (argc < 2) 
+        -:  532:   {
+    #####:  533:       (void)fprintf(stdout, "usage: change from [to]\n");
+    #####:  534:       exit(1);
+        -:  535:   }
+        -:  536:
+       10:  537:   result = getpat(argv[1], pat);
+       10:  538:   if (!result)
+        -:  539:   {
+    #####:  540:       (void)fprintf(stdout, "change: illegal \"from\" pattern\n");
+    #####:  541:       exit(2);
+        -:  542:   }
+        -:  543:
+       10:  544:   if (argc >= 3)
+        -:  545:   {
+       10:  546:       result = getsub(argv[2], sub);
+       10:  547:       if (!result)
+        -:  548:       {	
+    #####:  549:	   (void)fprintf(stdout, "change: illegal \"to\" string\n");
+    #####:  550:	   exit(3);
+        -:  551:       }
+        -:  552:   } else
+        -:  553:   {
+    #####:  554:       sub[0] = '\0';
+        -:  555:   }
+        -:  556:
+       10:  557:   change(pat, sub);
+       10:  558:   return 0;
+        -:  559:}
+        -:  560:
+        -:  561:void
+    #####:  562:Caseerror(n)
+        -:  563:	int	n;
+        -:  564:{
+    #####:  565:	(void)fprintf(stdout, "Missing case limb: line %d\n", n);
+    #####:  566:	exit(4);
+        -:  567:}

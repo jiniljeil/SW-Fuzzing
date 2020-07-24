@@ -1,0 +1,119 @@
+        -:    0:Source:triangle.c
+        -:    0:Graph:triangle.gcno
+        -:    0:Data:triangle.gcda
+        -:    0:Runs:15
+        -:    0:Programs:1
+        -:    1:#include <stdio.h>
+        -:    2:#include <stdlib.h>
+        -:    3:
+        -:    4:int
+function main called 15 returned 80% blocks executed 100%
+       15:    5:main() 
+        -:    6:{
+       15:    7:	int a = 0, b = 0, c =0 ;
+       15:    8:	int match = 0 ;
+        -:    9:
+       15:   10:	char * category[] = { "Equilateral", "Isosceles", "Not a triangle", "Scalene" } ;
+        -:   11:
+       15:   12:	scanf("%d", &a) ;
+call    0 returned 100%
+       15:   13:	scanf("%d", &b) ;
+call    0 returned 100%
+       15:   14:	scanf("%d", &c) ;
+call    0 returned 100%
+        -:   15:
+       15:   16:	if (a <= 0 || b<= 0 || c<= 0) {
+branch  0 taken 87% (fallthrough)
+branch  1 taken 13%
+branch  2 taken 92% (fallthrough)
+branch  3 taken 8%
+branch  4 taken 0% (fallthrough)
+branch  5 taken 100%
+        3:   17:		exit(0);  
+call    0 returned 0%
+        -:   18:	}
+        -:   19:
+       12:   20:	int result = -1 ;
+        -:   21:
+       12:   22:	if(a == b) 
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        4:   23:		match = match + 1 ;
+       12:   24:	if(a == c) 
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        4:   25:		match = match + 2 ;
+       12:   26:	if(b == c) 
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        4:   27:		match = match + 3 ;
+       12:   28:	if(match == 0) {
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        4:   29:		if(a + b <= c) {
+branch  0 taken 25% (fallthrough)
+branch  1 taken 75%
+        1:   30:			result = 2 ;
+        -:   31:		}
+        3:   32:		else if (b + c <= a) {
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        1:   33:			result = 2 ;
+        -:   34:		}
+        2:   35:		else if (a + c <= b) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        1:   36:			result = 2 ;
+        -:   37:		}
+        -:   38:		else {
+        1:   39:			result = 3 ;
+        -:   40:		}
+        -:   41:	} 
+        -:   42:	else {
+        8:   43:		if(match == 1) {
+branch  0 taken 25% (fallthrough)
+branch  1 taken 75%
+        2:   44:			if(a + b <= c) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        1:   45:				result = 2 ;
+        -:   46:			}
+        -:   47:			else {
+        1:   48:				result = 1 ;
+        -:   49:			}
+        -:   50:		} 
+        -:   51:		else {
+        6:   52:			if (match == 2) {
+branch  0 taken 33% (fallthrough)
+branch  1 taken 67%
+        2:   53:				if (a + c <= b) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        1:   54:					result = 2 ;
+        -:   55:				}
+        -:   56:				else {
+        1:   57:					result = 1 ;
+        -:   58:				}
+        -:   59:			} 
+        -:   60:			else {
+        4:   61:				if (match == 3) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        2:   62:					if(b + c <= a) {
+branch  0 taken 50% (fallthrough)
+branch  1 taken 50%
+        1:   63:						result = 2 ;
+        -:   64:					}
+        -:   65:					else {
+        1:   66:						result = 1 ;
+        -:   67:					}
+        -:   68:				} 
+        -:   69:				else {
+        2:   70:					result = 0;
+        -:   71:				}
+        -:   72:			}
+        -:   73:		}
+        -:   74:	}
+       12:   75:	printf("%s\n",category[result]);
+call    0 returned 100%
+        -:   76:}
